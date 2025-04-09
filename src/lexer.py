@@ -3,18 +3,16 @@ import re
 
 
 class TokenType(Enum):
-    ALPHANUM = 0
-    COMMA = 1
-    LPARANTH = 2
-    RPARANTH = 3
-    NULL = 4
-    SPACE = 5
-    COLON = 6
-    LIST_START = 7
-    LIST_END = 8
-    ESCAPE_SEQUENCE = 9
-    DQUOTES = 10
-    OTHER = 11
+    GENERAL = r"(?:[a-zA-Z0-9@!#$%^&*\(\)/\-_=+\.\\])+"
+    COMMA = r","
+    LPARANTH = r"\{"
+    RPARANTH = r"\}"
+    SPACE = r" "
+    COLON = r":"
+    LIST_START = r"\["
+    LIST_END = r"\]"
+    ESCAPE_SEQUENCE = r"(?:\\[stn\\])"
+    DQUOTES = r'"'
 
 
 class Token:
@@ -32,27 +30,39 @@ class Token:
 
 
 class Lexer:
-    jsonText: str
-    currPos: int
     tokenList: list[Token]
 
     # Initializes the Lexer class with the text. Also initialize the current position no.
     def __init__(self) -> None:
-        self.jsonText = ""
-        self.currPos = -1
         self.tokenList = list()
 
-    # Sets Lexer Text.
-    def setText(self, text: str) -> None:
-        self.jsonText = text
-
-    # Have an iterator to the next character.
-    def advance(self) -> None:
-        self.currPos += 1
-
     # Inputs a Text, and returns a list of tokens.
-    def generateTokens(self) -> list[Token]:
+    def generateTokens(self, jsonText: str) -> list[Token]:
+        currPos = 0
+        while currPos < len(jsonText):
+            ch = jsonText[currPos]
+            if re.match(TokenType.GENERAL.value, ch):
+                if (
+                    len(self.tokenList) > 0
+                    and self.tokenList[-1].type == TokenType.GENERAL
+                ):
+                    self.tokenList[-1].value = self.tokenList[-1].value + ch
+                else:
+                    self.tokenList.append(Token(TokenType.GENERAL, ch))
+            elif re.match(TokenType.LPARANTH.value, ch):
+                self.tokenList.append(Token(TokenType.LPARANTH, ch))
+            elif re.match(TokenType.RPARANTH.value, ch):
+                self.tokenList.append(Token(TokenType.RPARANTH, ch))
+            elif re.match(TokenType.LIST_START.value, ch):
+                self.tokenList.append(Token(TokenType.LIST_START, ch))
+            elif re.match(TokenType.LIST_END.value, ch):
+                self.tokenList.append(Token(TokenType.LIST_END, ch))
+            elif re.match(TokenType.DQUOTES.value, ch):
+                self.tokenList.append(Token(TokenType.DQUOTES, ch))
+            elif re.match(TokenType.COLON.value, ch):
+                self.tokenList.append(Token(TokenType.COLON, ch))
+            elif re.match(TokenType.SPACE.value, ch):
+                self.tokenList.append(Token(TokenType.SPACE, ch))
+            currPos += 1
 
-        for ch in self.jsonText:
-            pass
         return self.tokenList

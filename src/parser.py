@@ -12,3 +12,11 @@ class Parser:
     # Returns whether the set of tokens produce a valid JSON.
     def isJSON() -> bool:
         pass
+
+
+if __name__ == "__main__":
+    jsonStr = input().strip()
+    parser = Parser(Lexer().generateTokens(jsonStr))
+
+    for token in parser.tokenList:
+        print(token)
