@@ -3,7 +3,7 @@ import re
 
 
 class TokenType(Enum):
-    GENERAL = r"(?:[a-zA-Z0-9@!#$%^&*\(\)/\-_=+\.\\])+"
+    GENERAL = r"(?:[a-zA-Z0-9@!#$%^&*\(\)\/\-_=+\.\\])+"
     COMMA = r","
     LPARANTH = r"\{"
     RPARANTH = r"\}"
@@ -62,7 +62,13 @@ class Lexer:
             elif re.match(TokenType.COLON.value, ch):
                 self.tokenList.append(Token(TokenType.COLON, ch))
             elif re.match(TokenType.SPACE.value, ch):
-                self.tokenList.append(Token(TokenType.SPACE, ch))
+                if (
+                    len(self.tokenList) > 0
+                    and self.tokenList[-1].type == TokenType.SPACE
+                ):
+                    self.tokenList[-1].value = self.tokenList[-1].value + ch
+                else:
+                    self.tokenList.append(Token(TokenType.SPACE, ch))
             currPos += 1
 
         return self.tokenList
