@@ -1,28 +1,35 @@
 from enum import Enum
 import re
+from collections import deque
+from json_validators import JSONNumber, JSONString
 
 
 class TokenType(Enum):
-    GENERAL = r"(?:[a-zA-Z0-9@!#$%^&*\(\)\/\-_=+\.\\])+"
-    COMMA = r","
-    LPARANTH = r"\{"
-    RPARANTH = r"\}"
-    SPACE = r" "
-    COLON = r":"
-    LIST_START = r"\["
-    LIST_END = r"\]"
-    ESCAPE_SEQUENCE = r"(?:\\[stn\\])"
-    DQUOTES = r'"'
+    LEFT_BRACE = "{"
+    DQUOTES = '"'
+    LEFT_BRACKET = "["
+    COMMA = ","
+    COLON = ":"
+    RIGHT_BRACE = "}"
+    RIGHT_BRACKET = "]"
+    JSTRING = ""
+    WS = " "
+    ESCAPE_CHAR = "\\"
+    TRUE = "true"
+    FALSE = "false"
+    NULL = "null"
 
 
 class Token:
     type: TokenType
     value: str
+    level: int
 
     # Initializes a Token while parsing through the string.
-    def __init__(self, type: TokenType, value: str) -> None:
+    def __init__(self, type: TokenType, value: str, level: int = 0) -> None:
         self.type = type
         self.value = value
+        self.level = level
 
     # Utility function to print a token.
     def __repr__(self) -> str:
@@ -31,44 +38,183 @@ class Token:
 
 class Lexer:
     tokenList: list[Token]
+    lexStack: deque
 
     # Initializes the Lexer class with the text. Also initialize the current position no.
     def __init__(self) -> None:
         self.tokenList = list()
+        self.lexStack = deque()
 
     # Inputs a Text, and returns a list of tokens.
     def generateTokens(self, jsonText: str) -> list[Token]:
-        currPos = 0
-        while currPos < len(jsonText):
-            ch = jsonText[currPos]
-            if re.match(TokenType.GENERAL.value, ch):
-                if (
-                    len(self.tokenList) > 0
-                    and self.tokenList[-1].type == TokenType.GENERAL
-                ):
-                    self.tokenList[-1].value = self.tokenList[-1].value + ch
-                else:
-                    self.tokenList.append(Token(TokenType.GENERAL, ch))
-            elif re.match(TokenType.LPARANTH.value, ch):
-                self.tokenList.append(Token(TokenType.LPARANTH, ch))
-            elif re.match(TokenType.RPARANTH.value, ch):
-                self.tokenList.append(Token(TokenType.RPARANTH, ch))
-            elif re.match(TokenType.LIST_START.value, ch):
-                self.tokenList.append(Token(TokenType.LIST_START, ch))
-            elif re.match(TokenType.LIST_END.value, ch):
-                self.tokenList.append(Token(TokenType.LIST_END, ch))
-            elif re.match(TokenType.DQUOTES.value, ch):
-                self.tokenList.append(Token(TokenType.DQUOTES, ch))
-            elif re.match(TokenType.COLON.value, ch):
-                self.tokenList.append(Token(TokenType.COLON, ch))
-            elif re.match(TokenType.SPACE.value, ch):
-                if (
-                    len(self.tokenList) > 0
-                    and self.tokenList[-1].type == TokenType.SPACE
-                ):
-                    self.tokenList[-1].value = self.tokenList[-1].value + ch
-                else:
-                    self.tokenList.append(Token(TokenType.SPACE, ch))
-            currPos += 1
+        start = 0
+        curr = 0
+        insideQuotes = False
+        self.tokenList.clear()
+        self.lexStack.clear()
+        while curr < len(jsonText):
+            currChar = jsonText[curr]
+            match currChar:
+                case TokenType.LEFT_BRACE.value:
+                    # Either you are part of string or starting a new object.
+                    if insideQuotes:
+                        curr += 1
+                        self.tokenList[-1].value += currChar
+                    else:
+                        self.lexStack.append(TokenType.LEFT_BRACE)
+                        self.tokenList.append(
+                            Token(TokenType.LEFT_BRACE, currChar, len(self.lexStack))
+                        )
+                        curr += 1
+                        start = curr
+
+                case TokenType.LEFT_BRACKET.value:
+                    # Either you are part of string or starting a new array.
+                    if insideQuotes:
+                        curr += 1
+                        self.tokenList[-1].value += currChar
+                    else:
+                        self.lexStack.append(TokenType.LEFT_BRACKET)
+                        self.tokenList.append(
+                            Token(TokenType.LEFT_BRACE, currChar, len(self.lexStack))
+                        )
+                        curr += 1
+                        start = curr
+
+                case TokenType.COMMA.value:
+                    # Either you are part of string, or seperating two different values in array or JSON.
+                    if insideQuotes:
+                        curr += 1
+                        self.tokenList[-1].value += currChar
+                    else:
+                        # SUCCESSFULLY SEPERATES.
+                        self.tokenList.append(
+                            Token(TokenType.COMMA, currChar, len(self.lexStack))
+                        )
+                        curr += 1
+                        start = curr
+
+                case TokenType.COLON.value:
+                    # Either you are part of string , or seperating key value pair.
+                    if insideQuotes:
+                        curr += 1
+                        self.tokenList[-1].value += currChar
+                    else:
+                        # SUCCESSFULLY SEPERATES.
+                        self.tokenList.append(
+                            Token(TokenType.COLON, currChar, len(self.lexStack))
+                        )
+                        curr += 1
+                        start = curr
+
+                case TokenType.RIGHT_BRACE.value:
+                    # Either you are part of string or closing a new object.
+                    if insideQuotes:
+                        curr += 1
+                        self.tokenList[-1].value += currChar
+                    else:
+                        self.tokenList.append(
+                            Token(TokenType.RIGHT_BRACE, currChar, len(self.lexStack))
+                        )
+                        self.lexStack.pop()
+                        curr += 1
+                        start = curr
+
+                case TokenType.RIGHT_BRACKET.value:
+                    # Either you are part of string or closing a new object.
+                    if insideQuotes:
+                        curr += 1
+                        self.tokenList[-1].value += currChar
+                    else:
+                        self.tokenList.append(
+                            Token(TokenType.RIGHT_BRACKET, currChar, len(self.lexStack))
+                        )
+                        self.lexStack.pop()
+                        curr += 1
+                        start = curr
+
+                case TokenType.DQUOTES.value:
+                    # Will only enter this case when we need to invert quotes.
+                    self.tokenList.append(
+                        TokenType.DQUOTES, currChar, len(self.lexStack)
+                    )
+                    insideQuotes = not insideQuotes
+
+                case TokenType.WS.value:
+                    # Either it is inside a string, in that case you should not skip the spaces, else skip.
+                    if insideQuotes:
+                        curr += 1
+                        self.tokenList[-1].value += currChar
+                    else:
+                        curr += 1
+                        start = curr
+
+                case _:
+                    # TRUE, FALSE AND NULL KEYWORDS
+                    if (
+                        not insideQuotes
+                        and curr + 4 < len(jsonText)
+                        and jsonText[curr : curr + 4] == TokenType.TRUE.value
+                    ):
+                        self.tokenList.append(
+                            Token(TokenType.TRUE, True, len(self.lexStack))
+                        )
+                        curr += 4
+                        start = curr
+                    elif (
+                        not insideQuotes
+                        and curr + 5 < len(jsonText)
+                        and jsonText[curr : curr + 5] == TokenType.FALSE.value
+                    ):
+                        self.tokenList.append(
+                            Token(TokenType.FALSE, False, len(self.lexStack))
+                        )
+                        curr += 5
+                        start = curr
+                    elif (
+                        not insideQuotes
+                        and curr + 4 < len(jsonText)
+                        and jsonText[curr : curr + 4] == TokenType.NULL.value
+                    ):
+                        self.tokenList.append(
+                            Token(TokenType.NULL, None, len(self.lexStack))
+                        )
+                        curr += 4
+                        start = curr
+                    else:
+                        # REST ALL CHARACTERS WILL BE ADDED, JUST REMEMBER TO CHECK FOR ADDITIONAL CHARACTER AFTER \
+                        if currChar != TokenType.ESCAPE_CHAR.value:
+                            if (
+                                len(self.tokenList) > 0
+                                and self.tokenList[-1].type == TokenType.JSTRING
+                            ):
+                                self.tokenList[-1].value += currChar
+                                curr += 1
+                            else:
+                                self.tokenList.append(
+                                    Token(
+                                        TokenType.JSTRING, currChar, len(self.lexStack)
+                                    )
+                                )
+                                start = curr
+                                curr += 1
+                        else:
+                            # CURR CHARACTER IS A BACKSLASH.
+                            if curr + 1 < len(jsonText):
+                                currChar += jsonText[curr + 1]
+                            if (
+                                len(self.tokenList) > 0
+                                and self.tokenList[-1].type == TokenType.JSTRING
+                            ):
+                                self.tokenList[-1].value += currChar
+                                curr += len(currChar)
+                            else:
+                                self.tokenList.append(
+                                    Token(
+                                        TokenType.JSTRING, currChar, len(self.lexStack)
+                                    )
+                                )
+                                start = curr
+                                curr += len(currChar)
 
         return self.tokenList

@@ -6,8 +6,8 @@ class JSONNumber:
     A class to validate JSON number literals according to the JSON specification.
     """
 
-    @classmethod
-    def ParseNumber(cls, text: str) -> bool:
+    @staticmethod
+    def ParseNumber(text: str) -> bool:
         """
         Validates if the given string is a valid JSON number.
 
@@ -29,8 +29,8 @@ class JSONString:
     A class to validate JSON string literals, supporting escape sequences.
     """
 
-    @classmethod
-    def ParseString(cls, text: str) -> bool:
+    @staticmethod
+    def ParseString(text: str) -> bool:
         """
         Validates if the given string is a valid JSON string.
 
