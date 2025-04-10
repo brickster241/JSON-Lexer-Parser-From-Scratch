@@ -1,7 +1,7 @@
 from enum import Enum
 import re
 from collections import deque
-from json_validators import JSONNumber, JSONString
+from json_validators import JSONNumberLiteral, JSONStringLiteral
 
 
 class TokenType(Enum):
@@ -31,12 +31,42 @@ class Token:
         self.value = value
         self.level = level
 
+    # Utility function which extracts unique text color for printing showing clarity.
+    def GetTextColor(self) -> str:
+        match self.type:
+            case TokenType.LEFT_BRACE:
+                return "\033[31m"
+            case TokenType.RIGHT_BRACE:
+                return "\033[31m"
+            case TokenType.LEFT_BRACKET:
+                return "\033[33m"
+            case TokenType.RIGHT_BRACKET:
+                return "\033[33m"
+            case TokenType.TRUE:
+                return "\033[36m"
+            case TokenType.FALSE:
+                return "\033[36m"
+            case TokenType.NULL:
+                return "\033[36m"
+            case TokenType.DQUOTES:
+                return "\033[34m"
+            case TokenType.COMMA:
+                return "\033[38;5;213m"
+            case TokenType.COLON:
+                return "\033[38;5;208m"
+            case TokenType.JSTRING:
+                return "\033[32m"
+            case _:
+                return "\033[0m"
+
     # Utility function to print a token.
     def __repr__(self) -> str:
-        return f"Token : '{self.value}' -> Type : {self.type}"
+        textColor = self.GetTextColor()
+        resetColor = "\033[0m"
+        return f"{textColor}Token Type :-> {self.type.name : ^13} , Level : {self.level : ^2}, Value : {self.value}{resetColor}"
 
 
-class Lexer:
+class JSONLexer:
     tokenList: list[Token]
     lexStack: deque
 
@@ -46,7 +76,7 @@ class Lexer:
         self.lexStack = deque()
 
     # Inputs a Text, and returns a list of tokens.
-    def generateTokens(self, jsonText: str) -> list[Token]:
+    def generateTokens(self, jsonText: str) -> None:
         start = 0
         curr = 0
         insideQuotes = False
@@ -76,7 +106,7 @@ class Lexer:
                     else:
                         self.lexStack.append(TokenType.LEFT_BRACKET)
                         self.tokenList.append(
-                            Token(TokenType.LEFT_BRACE, currChar, len(self.lexStack))
+                            Token(TokenType.LEFT_BRACKET, currChar, len(self.lexStack))
                         )
                         curr += 1
                         start = curr
@@ -116,7 +146,8 @@ class Lexer:
                         self.tokenList.append(
                             Token(TokenType.RIGHT_BRACE, currChar, len(self.lexStack))
                         )
-                        self.lexStack.pop()
+                        if len(self.lexStack) > 0:
+                            self.lexStack.pop()
                         curr += 1
                         start = curr
 
@@ -129,16 +160,18 @@ class Lexer:
                         self.tokenList.append(
                             Token(TokenType.RIGHT_BRACKET, currChar, len(self.lexStack))
                         )
-                        self.lexStack.pop()
+                        if len(self.lexStack) > 0:
+                            self.lexStack.pop()
                         curr += 1
                         start = curr
 
                 case TokenType.DQUOTES.value:
                     # Will only enter this case when we need to invert quotes.
                     self.tokenList.append(
-                        TokenType.DQUOTES, currChar, len(self.lexStack)
+                        Token(TokenType.DQUOTES, currChar, len(self.lexStack))
                     )
                     insideQuotes = not insideQuotes
+                    curr += 1
 
                 case TokenType.WS.value:
                     # Either it is inside a string, in that case you should not skip the spaces, else skip.
@@ -216,5 +249,3 @@ class Lexer:
                                 )
                                 start = curr
                                 curr += len(currChar)
-
-        return self.tokenList

@@ -1,7 +1,7 @@
 import re
 
 
-class JSONNumber:
+class JSONNumberLiteral:
     """
     A class to validate JSON number literals according to the JSON specification.
     """
@@ -24,7 +24,7 @@ class JSONNumber:
         return bool(re.fullmatch(REGEX_STRING, text))
 
 
-class JSONString:
+class JSONStringLiteral:
     """
     A class to validate JSON string literals, supporting escape sequences.
     """
