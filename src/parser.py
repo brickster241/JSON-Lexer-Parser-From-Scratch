@@ -1,6 +1,7 @@
 from typing import Optional
 from lexer import TokenType, Token
 import re
+from collections import deque
 
 
 class JSONParser:
@@ -22,11 +23,12 @@ class JSONParser:
                 tokenTextColor = Token.GetTextColor(self.peek().type)
                 resetColor = "\033[0m"
                 raise SyntaxError(
-                    f"[UNEXPECTED_TOKEN_ERROR] Expected {leftBraceTextColor}{TokenType.LEFT_BRACE}{resetColor} or {leftBracketTextColor}{TokenType.LEFT_BRACKET}{resetColor} ; but got {tokenTextColor}{self.peek().type}{resetColor} "
+                    f"[UNEXPECTED_TOKEN_ERROR] (Index :> {self.pos}): Expected {leftBraceTextColor}{TokenType.LEFT_BRACE}{resetColor} or {leftBracketTextColor}{TokenType.LEFT_BRACKET}{resetColor} ; but got {tokenTextColor}{self.peek().type}{resetColor} "
                 )
 
             # TRY AND PARSE STUFF NOW.
             jsonValue = self.parse_value()
+            self.expect_end()
             return True
         except Exception as err:
             # print(err)
@@ -52,6 +54,10 @@ class JSONParser:
                 return self.parse_string()
             case TokenType.JSTRING:
                 return self.parse_number()
+            case _:
+                raise SyntaxError(
+                    f"[UNEXPECTED_TOKEN_ERROR] (Index :> {self.pos}): Value => {self.peek().value} is INVALID."
+                )
 
     def parse_array(self):
         arr = []
@@ -59,16 +65,18 @@ class JSONParser:
 
         # Return Empty Array
         if self.peek().type == TokenType.RIGHT_BRACKET:
-            self.pos += 1
+            self.consume(TokenType.RIGHT_BRACKET)
             return []
 
         while True:
-            arr.append(self.parse_value())
+            arr_value = self.parse_value()
+            arr.append(arr_value)
+
             # If list does not end, check for comma
             if self.peek().type != TokenType.RIGHT_BRACKET:
                 self.consume(TokenType.COMMA)
             else:
-                self.pos += 1
+                self.consume(TokenType.RIGHT_BRACKET)
                 break
         return arr
 
@@ -76,18 +84,19 @@ class JSONParser:
         obj = dict()
         self.consume(TokenType.LEFT_BRACE)
         key_occurences = dict()
+
         # Return Empty Array
         if self.peek().type == TokenType.RIGHT_BRACE:
-            self.pos += 1
+            self.consume(TokenType.RIGHT_BRACE)
             return obj
 
         while True:
             key = self.parse_string()
             self.consume(TokenType.COLON)
             value = self.parse_value()
-            if key_occurences.get(key, None) is not None:
+            if key_occurences.get(key, 0) > 0:
                 raise SyntaxError(
-                    f'[DUPLICATE_KEY_ERROR] Key : "{key}" already exists '
+                    f'[DUPLICATE_KEY_ERROR] (Index :> {self.pos}) :  Key => "{key}" already exists '
                 )
             else:
                 key_occurences[key] = 1
@@ -96,6 +105,7 @@ class JSONParser:
             if self.peek().type != TokenType.RIGHT_BRACE:
                 self.consume(TokenType.COMMA)
             else:
+                self.consume(TokenType.RIGHT_BRACE)
                 break
         return obj
 
@@ -114,7 +124,7 @@ class JSONParser:
         REGEX_STRING = r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[Ee][+-]?[0-9]+)?"
 
         # Use re.fullmatch to ensure the entire string matches the regex
-        if re.fullmatch(REGEX_STRING, numberText):
+        if re.fullmatch(REGEX_STRING, numberText) and len(numberText) > 0:
             self.pos += 1
             if "." in numberText or "e" in numberText.lower():
                 return float(numberText)
@@ -122,7 +132,7 @@ class JSONParser:
                 return int(numberText)
         else:
             raise SyntaxError(
-                f"[NUMBER MISMATCH ERROR] Value : {numberText} is not a valid number "
+                f"[NUMBER_MISMATCH_ERROR] (Index :> {self.pos}): Value => {numberText} is not a valid number. "
             )
 
     def parse_string(self):
@@ -136,18 +146,28 @@ class JSONParser:
             bool: True if the string matches the JSON string format, else False.
         """
         self.consume(TokenType.DQUOTES)
+
+        # If next token is also DQUOTES, close and return.
+        if self.peek().type == TokenType.DQUOTES:
+            self.consume(TokenType.DQUOTES)
+            return ""
+
         stringText = self.peek().value
         # Regex for a valid JSON string:
         REGEX_STRING = r'([^\\]|\\[bfnrt\\/"]|\\u[0-9a-fA-F]{4})*'
 
         # Use re.fullmatch to ensure the full string matches the pattern
-        if re.fullmatch(REGEX_STRING, stringText):
+        if (
+            re.fullmatch(REGEX_STRING, stringText)
+            and "\n" not in stringText
+            and "\t" not in stringText
+        ):
             self.pos += 1
             self.consume(TokenType.DQUOTES)
             return stringText
         else:
             raise SyntaxError(
-                f"[STRING MISMATCH ERROR] Value : {stringText} is not a valid string "
+                f"[STRING_MISMATCH_ERROR] (Index :> {self.pos}): Value => {stringText} is not a valid string. "
             )
 
     def peek(self):
@@ -155,13 +175,13 @@ class JSONParser:
             raise SyntaxError("[END_OF_INPUT_ERROR] Unexpected end of input ")
         if self.tokens[self.pos].level >= self.MAX_DEPTH:
             raise SyntaxError(
-                "[MAX_DEPTH_EXCEEDED_ERROR] JSON Nested Too deep, cannot be more than 20 "
+                f"[MAX_DEPTH_EXCEEDED_ERROR] (Index :> {self.pos}): JSON Nested Too deep, cannot be more than 20. "
             )
         return self.tokens[self.pos]
 
     def expect_end(self):
         if self.pos != len(self.tokens):
-            raise SyntaxError("[TRAILING_TOKENS_ERROR] Unexpected trailing tokens ")
+            raise SyntaxError("[TRAILING_TOKENS_ERROR] : Unexpected trailing tokens ")
 
     def consume(self, expected_type: TokenType) -> Token:
         token = self.tokens[self.pos]
@@ -170,11 +190,17 @@ class JSONParser:
         resetColor = "\033[0m"
         if token.type != expected_type:
             raise SyntaxError(
-                f"[UNEXPECTED_TOKEN_ERROR] Expected {expectedTextColor}{expected_type}{resetColor} but got {tokenTextColor}{token.type}{resetColor} :-> {token.value} "
+                f"[UNEXPECTED_TOKEN_ERROR] (Index :> {self.pos}): Expected {expectedTextColor}{expected_type}{resetColor} but got {tokenTextColor}{token.type}{resetColor} :-> {token.value} "
             )
-        if token.level >= self.MAX_DEPTH:
+        elif token.level >= self.MAX_DEPTH:
             raise SyntaxError(
-                "[MAX_DEPTH_EXCEEDED_ERROR] JSON Nested Too deep, cannot be more than 20 "
+                f"[MAX_DEPTH_EXCEEDED_ERROR] (Index :> {self.pos}): JSON Nested Too deep, cannot be more than 20 "
             )
-        self.pos += 1
-        return token
+
+        elif token.level == 0:
+            raise SyntaxError(
+                f"[EXTRA_CLOSING_TOKENS_ERROR] (Index :> {self.pos}): Extra Closing / Unnecessary Tokens present."
+            )
+        else:
+            self.pos += 1
+            return token

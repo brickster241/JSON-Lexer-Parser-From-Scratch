@@ -17,6 +17,7 @@ class TokenType(Enum):
     TRUE = "true"
     FALSE = "false"
     NULL = "null"
+    NEWLINE = "\n"
 
 
 class Token:
@@ -91,6 +92,13 @@ class JSONLexer:
         while curr < len(self.jsonText):
             currChar = self.jsonText[curr]
             match currChar:
+                case TokenType.NEWLINE.value:
+                    # If it is part of string, include it in the current string else discard it.
+                    if insideQuotes:
+                        curr += 1
+                        self.tokenList[-1].value += currChar
+                    else:
+                        curr += 1
                 case TokenType.LEFT_BRACE.value:
                     # Either you are part of string or starting a new object.
                     if insideQuotes:

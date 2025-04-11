@@ -1,0 +1,10 @@
+{
+    "JSON Same Key": {
+        "Key1": "must be an object or array.",
+        "Key2": "It is an object."
+    },
+    "JSON Same Key": {
+        "Key3": "must be an object or array.",
+        "Key4": "It is an object."
+    }
+}
