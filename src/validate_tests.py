@@ -1,6 +1,7 @@
 import os
 import json
 import pytest
+from lexer import JSONLexer
 from parser import JSONParser
 
 
@@ -37,5 +38,5 @@ TEST_JSON_DIR = "./tests"
     "filename, content, should_pass", collect_test_cases(TEST_JSON_DIR)
 )
 def test_json_parsing(filename, content, should_pass):
-    isValidJSON = JSONParser.isValidJSON(content)
+    isValidJSON = JSONParser(JSONLexer(content).tokenList).parse() is not None
     assert isValidJSON == should_pass

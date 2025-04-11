@@ -12,7 +12,10 @@ if __name__ == "__main__":
         content = f.read()
 
     if content is not None:
-        Lexer = JSONLexer()
-        Lexer.generateTokens(content)
-        for i, token in enumerate(Lexer.tokenList):
-            print(f"Index {i : ^3} : {token}")
+        Lexer = JSONLexer(content)
+        Lexer.generateTokens()
+        Parser = JSONParser(Lexer.tokenList)
+
+        parsedJSON = Parser.parse()
+        resultText = "YES" if parsedJSON is not None else "NO"
+        print(f"\n\nWAS PARSING SUCCESSFUL? : {resultText}\n")

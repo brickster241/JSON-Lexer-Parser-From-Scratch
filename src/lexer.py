@@ -1,7 +1,6 @@
 from enum import Enum
 import re
 from collections import deque
-from json_validators import JSONNumberLiteral, JSONStringLiteral
 
 
 class TokenType(Enum):
@@ -32,8 +31,9 @@ class Token:
         self.level = level
 
     # Utility function which extracts unique text color for printing showing clarity.
-    def GetTextColor(self) -> str:
-        match self.type:
+    @staticmethod
+    def GetTextColor(type: TokenType) -> str:
+        match type:
             case TokenType.LEFT_BRACE:
                 return "\033[31m"
             case TokenType.RIGHT_BRACE:
@@ -61,7 +61,7 @@ class Token:
 
     # Utility function to print a token.
     def __repr__(self) -> str:
-        textColor = self.GetTextColor()
+        textColor = Token.GetTextColor(self.type)
         resetColor = "\033[0m"
         return f"{textColor}Token Type :-> {self.type.name : ^13} , Level : {self.level : ^2}, Value : {self.value}{resetColor}"
 
@@ -69,21 +69,23 @@ class Token:
 class JSONLexer:
     tokenList: list[Token]
     lexStack: deque
+    jsonText: str
 
     # Initializes the Lexer class with the text. Also initialize the current position no.
-    def __init__(self) -> None:
+    def __init__(self, jsonText: str) -> None:
         self.tokenList = list()
         self.lexStack = deque()
+        self.jsonText = jsonText
 
     # Inputs a Text, and returns a list of tokens.
-    def generateTokens(self, jsonText: str) -> None:
+    def generateTokens(self) -> None:
         start = 0
         curr = 0
         insideQuotes = False
         self.tokenList.clear()
         self.lexStack.clear()
-        while curr < len(jsonText):
-            currChar = jsonText[curr]
+        while curr < len(self.jsonText):
+            currChar = self.jsonText[curr]
             match currChar:
                 case TokenType.LEFT_BRACE.value:
                     # Either you are part of string or starting a new object.
@@ -186,8 +188,8 @@ class JSONLexer:
                     # TRUE, FALSE AND NULL KEYWORDS
                     if (
                         not insideQuotes
-                        and curr + 4 < len(jsonText)
-                        and jsonText[curr : curr + 4] == TokenType.TRUE.value
+                        and curr + 4 < len(self.jsonText)
+                        and self.jsonText[curr : curr + 4] == TokenType.TRUE.value
                     ):
                         self.tokenList.append(
                             Token(TokenType.TRUE, True, len(self.lexStack))
@@ -196,8 +198,8 @@ class JSONLexer:
                         start = curr
                     elif (
                         not insideQuotes
-                        and curr + 5 < len(jsonText)
-                        and jsonText[curr : curr + 5] == TokenType.FALSE.value
+                        and curr + 5 < len(self.jsonText)
+                        and self.jsonText[curr : curr + 5] == TokenType.FALSE.value
                     ):
                         self.tokenList.append(
                             Token(TokenType.FALSE, False, len(self.lexStack))
@@ -206,8 +208,8 @@ class JSONLexer:
                         start = curr
                     elif (
                         not insideQuotes
-                        and curr + 4 < len(jsonText)
-                        and jsonText[curr : curr + 4] == TokenType.NULL.value
+                        and curr + 4 < len(self.jsonText)
+                        and self.jsonText[curr : curr + 4] == TokenType.NULL.value
                     ):
                         self.tokenList.append(
                             Token(TokenType.NULL, None, len(self.lexStack))
@@ -233,8 +235,8 @@ class JSONLexer:
                                 curr += 1
                         else:
                             # CURR CHARACTER IS A BACKSLASH.
-                            if curr + 1 < len(jsonText):
-                                currChar += jsonText[curr + 1]
+                            if curr + 1 < len(self.jsonText):
+                                currChar += self.jsonText[curr + 1]
                             if (
                                 len(self.tokenList) > 0
                                 and self.tokenList[-1].type == TokenType.JSTRING
@@ -249,3 +251,12 @@ class JSONLexer:
                                 )
                                 start = curr
                                 curr += len(currChar)
+
+    # Prints the Token List
+    def printTokenList(self) -> None:
+        print(
+            "==================================== LEXER TOKENLIST OUTPUT ====================================\n\n"
+        )
+        for i, token in enumerate(self.tokenList):
+            print(f"Index {i : ^3} : {token}")
+        print("\n")
