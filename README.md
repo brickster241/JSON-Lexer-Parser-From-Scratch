@@ -36,7 +36,7 @@ cd JSON-Lexer-Parser-From-Scratch
 You can run the program with existing test suite :
 
 ```bash
-python main.py
+python .\src\main.py
 ```
 
 Or modify/add json files in `tests` folder with your own custom input string.
