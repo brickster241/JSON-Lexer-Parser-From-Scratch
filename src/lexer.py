@@ -18,6 +18,7 @@ class TokenType(Enum):
     FALSE = "false"
     NULL = "null"
     NEWLINE = "\n"
+    TABLINE = "\t"
 
 
 class Token:
@@ -27,13 +28,10 @@ class Token:
     line: int
 
     # Initializes a Token while parsing through the string.
-    def __init__(
-        self, type: TokenType, value: str, level: int = 0, line: int = 0
-    ) -> None:
+    def __init__(self, type: TokenType, value: str, level: int = 0) -> None:
         self.type = type
         self.value = value
         self.level = level
-        self.line = line
 
     # Utility function which extracts unique text color for printing showing clarity.
     @staticmethod
@@ -93,6 +91,13 @@ class JSONLexer:
             currChar = self.jsonText[curr]
             match currChar:
                 case TokenType.NEWLINE.value:
+                    # If it is part of string, include it in the current string else discard it.
+                    if insideQuotes:
+                        curr += 1
+                        self.tokenList[-1].value += currChar
+                    else:
+                        curr += 1
+                case TokenType.TABLINE.value:
                     # If it is part of string, include it in the current string else discard it.
                     if insideQuotes:
                         curr += 1

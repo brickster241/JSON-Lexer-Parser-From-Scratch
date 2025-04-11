@@ -1,6 +1,7 @@
 from lexer import JSONLexer, Token, TokenType
 from parser import JSONParser
 import os
+import time
 
 
 def collect_test_cases(TESTS_JSON_DIR="./tests"):
@@ -34,6 +35,7 @@ def run_all_tests():
     print(
         "====================================== TEST CASES SUMMARY ======================================\n\n"
     )
+    start_time = time.time()
     for filename, content, should_pass in test_cases:
         if content is not None:
             Lexer = JSONLexer(content)
@@ -49,9 +51,10 @@ def run_all_tests():
             print(
                 f"{"\033[92m[PASS]" if should_pass == isValidJSON else "\033[31m[FAIL]"} Filename : {filename :^13} -> WAS PARSING SUCCESSFUL? : {resultText}\033[0m"
             )
-
+    end_time = time.time()
     print(f"\n\nNo. of Test Cases Passed : {passCount}/{len(test_cases)}")
     print(f"No. of Tokens Processed : {tokenCount}")
+    print(f"Execution Time : {end_time - start_time : .4f}s")
 
 
 def run_test_filename(filename: str, TESTS_JSON_DIR: str = "./tests"):
