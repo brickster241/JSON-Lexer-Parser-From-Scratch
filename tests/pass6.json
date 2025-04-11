@@ -1,4 +1,6 @@
 {
   "key": "value",
-  "key2": "value"
+  "key-n": 101,
+  "key-o": {},
+  "key-l": []
 }
