@@ -23,12 +23,16 @@ class Token:
     type: TokenType
     value: str
     level: int
+    line: int
 
     # Initializes a Token while parsing through the string.
-    def __init__(self, type: TokenType, value: str, level: int = 0) -> None:
+    def __init__(
+        self, type: TokenType, value: str, level: int = 0, line: int = 0
+    ) -> None:
         self.type = type
         self.value = value
         self.level = level
+        self.line = line
 
     # Utility function which extracts unique text color for printing showing clarity.
     @staticmethod
