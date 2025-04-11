@@ -1,7 +1,6 @@
 from lexer import JSONLexer, Token, TokenType
-from parser import JSONParser
+from parser import JSONRDParser
 import os
-import time
 
 
 def collect_test_cases(TESTS_JSON_DIR="./tests"):
@@ -29,13 +28,15 @@ def collect_test_cases(TESTS_JSON_DIR="./tests"):
 
 
 def run_all_tests():
+    """
+    Runs all the given 50 test cases in the TESTS folder.
+    """
     test_cases = collect_test_cases()
     passCount = 0
     tokenCount = 0
     print(
         "====================================== TEST CASES SUMMARY ======================================\n\n"
     )
-    start_time = time.time()
     for filename, content, should_pass in test_cases:
         if content is not None:
             Lexer = JSONLexer(content)
@@ -43,7 +44,7 @@ def run_all_tests():
             # Lexer.printTokenList()
             tokenCount += len(Lexer.tokenList)
 
-            Parser = JSONParser(Lexer.tokenList)
+            Parser = JSONRDParser(Lexer.tokenList)
 
             isValidJSON = Parser.parse()
             resultText = "YES" if isValidJSON else "NO"
@@ -51,33 +52,8 @@ def run_all_tests():
             print(
                 f"{"\033[92m[PASS]" if should_pass == isValidJSON else "\033[31m[FAIL]"} Filename : {filename :^13} -> WAS PARSING SUCCESSFUL? : {resultText}\033[0m"
             )
-    end_time = time.time()
     print(f"\n\nNo. of Test Cases Passed : {passCount}/{len(test_cases)}")
     print(f"No. of Tokens Processed : {tokenCount}")
-    print(f"Execution Time : {end_time - start_time : .4f}s")
-
-
-def run_test_filename(filename: str, TESTS_JSON_DIR: str = "./tests"):
-    full_path = os.path.join(TESTS_JSON_DIR, filename)
-    content = None
-    should_pass = None
-    with open(full_path, "r", encoding="utf-8") as f:
-        content = f.read()
-
-        # Test files have been named accordingly.
-        should_pass = filename.lower().startswith("pass")
-
-    Lexer = JSONLexer(content)
-    Lexer.generateTokens()
-    Lexer.printTokenList()
-
-    Parser = JSONParser(Lexer.tokenList)
-
-    isValidJSON = Parser.parse()
-    resultText = "YES" if isValidJSON else "NO"
-    print(
-        f"{"\033[92m[PASS]" if should_pass == isValidJSON else "\033[31m[FAIL]"} Filename : {filename :^13} -> WAS PARSING SUCCESSFUL? : {resultText}\033[0m"
-    )
 
 
 if __name__ == "__main__":

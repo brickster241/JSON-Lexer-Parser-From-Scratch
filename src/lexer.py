@@ -3,6 +3,7 @@ import re
 from collections import deque
 
 
+# Enum to represent different token types in a JSON string
 class TokenType(Enum):
     LEFT_BRACE = "{"
     DQUOTES = '"'
@@ -21,21 +22,37 @@ class TokenType(Enum):
     TABLINE = "\t"
 
 
+# Class representing a token with type, value, and indentation level
 class Token:
     type: TokenType
     value: str
     level: int
     line: int
 
-    # Initializes a Token while parsing through the string.
     def __init__(self, type: TokenType, value: str, level: int = 0) -> None:
+        """
+        Initializes a Token object.
+
+        Args:
+            type (TokenType): The type of the token.
+            value (str): The actual string value of the token.
+            level (int): The nesting level of the token (used for depth tracking).
+        """
         self.type = type
         self.value = value
         self.level = level
 
-    # Utility function which extracts unique text color for printing showing clarity.
     @staticmethod
     def GetTextColor(type: TokenType) -> str:
+        """
+        Returns ANSI color code for a given token type.
+
+        Args:
+            type (TokenType): The token type.
+
+        Returns:
+            str: ANSI color string.
+        """
         match type:
             case TokenType.LEFT_BRACE:
                 return "\033[31m"
@@ -62,50 +79,66 @@ class Token:
             case _:
                 return "\033[0m"
 
-    # Utility function to print a token.
     def __repr__(self) -> str:
+        """
+        Returns a formatted string representation of the token with color.
+
+        Returns:
+            str: Formatted and colored string.
+        """
         textColor = Token.GetTextColor(self.type)
         resetColor = "\033[0m"
         return f"{textColor}Token Type :-> {self.type.name : ^13} , Level : {self.level : ^2}, Value : {self.value}{resetColor}"
 
 
+# JSONLexer generates tokens from input JSON string
 class JSONLexer:
     tokenList: list[Token]
     lexStack: deque
     jsonText: str
 
-    # Initializes the Lexer class with the text. Also initialize the current position no.
     def __init__(self, jsonText: str) -> None:
+        """
+        Initializes the JSONLexer.
+
+        Args:
+            jsonText (str): The input JSON string.
+        """
         self.tokenList = list()
         self.lexStack = deque()
         self.jsonText = jsonText
 
-    # Inputs a Text, and returns a list of tokens.
     def generateTokens(self) -> None:
+        """
+        Processes the input JSON string and generates tokens.
+        Populates tokenList with Token instances.
+        """
         start = 0
         curr = 0
         insideQuotes = False
         self.tokenList.clear()
         self.lexStack.clear()
+
         while curr < len(self.jsonText):
             currChar = self.jsonText[curr]
+
+            # Matching individual characters
             match currChar:
                 case TokenType.NEWLINE.value:
-                    # If it is part of string, include it in the current string else discard it.
                     if insideQuotes:
                         curr += 1
                         self.tokenList[-1].value += currChar
                     else:
                         curr += 1
+
                 case TokenType.TABLINE.value:
-                    # If it is part of string, include it in the current string else discard it.
                     if insideQuotes:
                         curr += 1
                         self.tokenList[-1].value += currChar
                     else:
                         curr += 1
+
                 case TokenType.LEFT_BRACE.value:
-                    # Either you are part of string or starting a new object.
                     if insideQuotes:
                         curr += 1
                         self.tokenList[-1].value += currChar
@@ -118,7 +151,6 @@ class JSONLexer:
                         start = curr
 
                 case TokenType.LEFT_BRACKET.value:
-                    # Either you are part of string or starting a new array.
                     if insideQuotes:
                         curr += 1
                         self.tokenList[-1].value += currChar
@@ -131,12 +163,10 @@ class JSONLexer:
                         start = curr
 
                 case TokenType.COMMA.value:
-                    # Either you are part of string, or seperating two different values in array or JSON.
                     if insideQuotes:
                         curr += 1
                         self.tokenList[-1].value += currChar
                     else:
-                        # SUCCESSFULLY SEPERATES.
                         self.tokenList.append(
                             Token(TokenType.COMMA, currChar, len(self.lexStack))
                         )
@@ -144,12 +174,10 @@ class JSONLexer:
                         start = curr
 
                 case TokenType.COLON.value:
-                    # Either you are part of string , or seperating key value pair.
                     if insideQuotes:
                         curr += 1
                         self.tokenList[-1].value += currChar
                     else:
-                        # SUCCESSFULLY SEPERATES.
                         self.tokenList.append(
                             Token(TokenType.COLON, currChar, len(self.lexStack))
                         )
@@ -157,7 +185,6 @@ class JSONLexer:
                         start = curr
 
                 case TokenType.RIGHT_BRACE.value:
-                    # Either you are part of string or closing a new object.
                     if insideQuotes:
                         curr += 1
                         self.tokenList[-1].value += currChar
@@ -171,7 +198,6 @@ class JSONLexer:
                         start = curr
 
                 case TokenType.RIGHT_BRACKET.value:
-                    # Either you are part of string or closing a new object.
                     if insideQuotes:
                         curr += 1
                         self.tokenList[-1].value += currChar
@@ -185,7 +211,6 @@ class JSONLexer:
                         start = curr
 
                 case TokenType.DQUOTES.value:
-                    # Will only enter this case when we need to invert quotes.
                     self.tokenList.append(
                         Token(TokenType.DQUOTES, currChar, len(self.lexStack))
                     )
@@ -193,7 +218,6 @@ class JSONLexer:
                     curr += 1
 
                 case TokenType.WS.value:
-                    # Either it is inside a string, in that case you should not skip the spaces, else skip.
                     if insideQuotes:
                         curr += 1
                         self.tokenList[-1].value += currChar
@@ -202,7 +226,7 @@ class JSONLexer:
                         start = curr
 
                 case _:
-                    # TRUE, FALSE AND NULL KEYWORDS
+                    # Handle TRUE/FALSE/NULL keywords
                     if (
                         not insideQuotes
                         and curr + 4 < len(self.jsonText)
@@ -213,6 +237,7 @@ class JSONLexer:
                         )
                         curr += 4
                         start = curr
+
                     elif (
                         not insideQuotes
                         and curr + 5 < len(self.jsonText)
@@ -223,6 +248,7 @@ class JSONLexer:
                         )
                         curr += 5
                         start = curr
+
                     elif (
                         not insideQuotes
                         and curr + 4 < len(self.jsonText)
@@ -233,8 +259,9 @@ class JSONLexer:
                         )
                         curr += 4
                         start = curr
+
                     else:
-                        # REST ALL CHARACTERS WILL BE ADDED, JUST REMEMBER TO CHECK FOR ADDITIONAL CHARACTER AFTER \
+                        # Handle regular characters and escaped sequences
                         if currChar != TokenType.ESCAPE_CHAR.value:
                             if (
                                 len(self.tokenList) > 0
@@ -251,7 +278,7 @@ class JSONLexer:
                                 start = curr
                                 curr += 1
                         else:
-                            # CURR CHARACTER IS A BACKSLASH.
+                            # Handle backslash escape sequences
                             if curr + 1 < len(self.jsonText):
                                 currChar += self.jsonText[curr + 1]
                             if (
@@ -269,8 +296,10 @@ class JSONLexer:
                                 start = curr
                                 curr += len(currChar)
 
-    # Prints the Token List
     def printTokenList(self) -> None:
+        """
+        Prints all tokens with formatting and colors.
+        """
         print(
             "==================================== LEXER TOKENLIST OUTPUT ====================================\n\n"
         )

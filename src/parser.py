@@ -4,7 +4,7 @@ import re
 from collections import deque
 
 
-class JSONParser:
+class JSONRDParser:
     tokens: list[Token]
     pos: int
     MAX_DEPTH: int = 20
@@ -15,6 +15,9 @@ class JSONParser:
         self.pos = 0
 
     def parse(self):
+        """
+        Validates if the given string is a valid JSON string.
+        """
         try:
             # First Character should always be a LEFT_BRACE or LEFT_BRACKET
             if self.peek().type not in [TokenType.LEFT_BRACE, TokenType.LEFT_BRACKET]:
@@ -35,6 +38,9 @@ class JSONParser:
             return False
 
     def parse_value(self):
+        """
+        Validates if the content is a valid JSON value.
+        """
         currToken = self.peek()
         match currToken.type:
             case TokenType.LEFT_BRACE:
@@ -60,6 +66,9 @@ class JSONParser:
                 )
 
     def parse_array(self):
+        """
+        Validates if the content is a valid array.
+        """
         arr = []
         self.consume(TokenType.LEFT_BRACKET)
 
@@ -81,6 +90,9 @@ class JSONParser:
         return arr
 
     def parse_object(self):
+        """
+        Validates if the content is a valid object.
+        """
         obj = dict()
         self.consume(TokenType.LEFT_BRACE)
         key_occurences = dict()
@@ -112,12 +124,6 @@ class JSONParser:
     def parse_number(self):
         """
         Validates if the given string is a valid JSON number.
-
-        Args:
-            text (str): The input string to be validated.
-
-        Returns:
-            bool: True if the string matches the JSON number format, else False.
         """
         numberText = self.peek().value
         # Regex for a valid JSON number
@@ -138,12 +144,6 @@ class JSONParser:
     def parse_string(self):
         """
         Validates if the given string is a valid JSON string.
-
-        Args:
-            text (str): The input string to be validated.
-
-        Returns:
-            bool: True if the string matches the JSON string format, else False.
         """
         self.consume(TokenType.DQUOTES)
 
@@ -171,6 +171,9 @@ class JSONParser:
             )
 
     def peek(self):
+        """
+        Peeks at the current token value. Doesn't advance, just returns it.
+        """
         if self.pos >= len(self.tokens):
             raise SyntaxError("[END_OF_INPUT_ERROR] Unexpected end of input ")
         if self.tokens[self.pos].level >= self.MAX_DEPTH:
@@ -184,6 +187,9 @@ class JSONParser:
             raise SyntaxError("[TRAILING_TOKENS_ERROR] : Unexpected trailing tokens ")
 
     def consume(self, expected_type: TokenType) -> Token:
+        """
+        Consumes the current token, also checks whether the tokentype is matching with expected.
+        """
         token = self.tokens[self.pos]
         expectedTextColor = Token.GetTextColor(expected_type)
         tokenTextColor = Token.GetTextColor(token.type)
